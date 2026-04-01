@@ -1,0 +1,60 @@
+# TranQil environment specification
+#
+# Purpose:
+#   Define the base micromamba/conda environment used by the repository's
+#   runtime bring-up pipeline.
+#
+# Pipeline role:
+#   Phase 1: `env spec`
+#   This file is the first layer in the pipeline:
+#   `environment.yml -> activate_env.sh/env_vars.sh -> install_d4rl_stack.sh
+#   -> run_smoke_test.sh -> run_rollout_preview.sh/run_benchmark_rollouts.sh`
+#
+# What this file provides:
+#   - Python 3.9 for the legacy Gym + D4RL + mujoco-py stack
+#   - scientific Python packages used by validation scripts
+#   - build tools needed by pip-installed native extensions
+#   - headless rendering libraries used by offscreen MuJoCo rendering
+#
+# What this file does not provide:
+#   - the MuJoCo 2.1.0 binary payload
+#   - `gym`, `mujoco-py`, `mjrl`, or `d4rl`
+#   - WSL2-specific builder patching
+#
+# Follow-on file:
+#   `scripts/install_d4rl_stack.sh` consumes this base environment and installs
+#   the RL-specific Python dependencies on top of it.
+name: tranqil-qt
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pip
+  - git
+  - curl
+  - numpy=1.26.*
+  - scipy=1.13.*
+  - pandas=2.2.*
+  - matplotlib=3.9.*
+  - tqdm=4.66.*
+  - pyyaml=6.0.*
+  - h5py=3.11.*
+  - cython<3
+  - setuptools<70
+  - wheel
+  - cmake
+  - ninja
+  - patchelf
+  - glfw
+  - glew
+  - mesalib
+  - xorg-libx11
+  - xorg-libxext
+  - xorg-libxrender
+  - xorg-libxrandr
+  - xorg-libxcursor
+  - xorg-libxi
+  - xorg-libxinerama
+  - pip:
+      - click>=8,<9
+      - termcolor>=2,<3
