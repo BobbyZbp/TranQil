@@ -29,6 +29,16 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ENV_PREFIX="${REPO_ROOT}/.micromamba/root/envs/tranqil-qt"
+ENV_PYTHON="${ENV_PREFIX}/bin/python"
+
+die() {
+  echo "$*" >&2
+  return 1 2>/dev/null || exit 1
+}
+
+if [[ ! -x "${ENV_PYTHON}" ]]; then
+  die "TranQil repo-local env is missing at ${ENV_PREFIX}. Create it first with: export MAMBA_ROOT_PREFIX=\"${REPO_ROOT}/.micromamba/root\" && micromamba create -y -f environment.yml"
+fi
 
 export MAMBA_ROOT_PREFIX="${REPO_ROOT}/.micromamba/root"
 export XDG_CACHE_HOME="${REPO_ROOT}/.micromamba/cache"

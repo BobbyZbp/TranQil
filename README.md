@@ -49,28 +49,52 @@ Detailed technical behavior and file-level specifications are documented directl
 
 ## Getting Started
 
+Run these commands from the repository root.
+
+Prerequisite: `micromamba` must already be installed and available on `PATH`.
+
+```bash
+command -v micromamba
+```
+
+If that command prints nothing, install `micromamba` first and then continue.
+
+Clone the repository and enter it:
+
+```bash
+git clone git@github.com:BobbyZbp/TranQil.git
+cd TranQil
+```
+
+Create the base repo-local environment:
+
+```bash
+export MAMBA_ROOT_PREFIX="$PWD/.micromamba/root"
+micromamba create -y -f environment.yml
+```
+
 Activate the repo-local environment:
 
 ```bash
-source ~/TranQil/scripts/activate_env.sh
+source scripts/activate_env.sh
 ```
 
 Install or repair the D4RL + MuJoCo stack:
 
 ```bash
-bash ~/TranQil/scripts/install_d4rl_stack.sh
+bash scripts/install_d4rl_stack.sh
 ```
 
 Run the scoped smoke test:
 
 ```bash
-bash ~/TranQil/scripts/run_smoke_test.sh
+bash scripts/run_smoke_test.sh
 ```
 
 Render a single preview rollout:
 
 ```bash
-bash ~/TranQil/scripts/run_rollout_preview.sh \
+bash scripts/run_rollout_preview.sh \
   --env walker2d-medium-replay-v2 \
   --steps 150 \
   --fps 20 \
@@ -80,7 +104,7 @@ bash ~/TranQil/scripts/run_rollout_preview.sh \
 Render previews for all scoped tasks:
 
 ```bash
-bash ~/TranQil/scripts/run_benchmark_rollouts.sh
+bash scripts/run_benchmark_rollouts.sh
 ```
 
 ## Runtime Notes
