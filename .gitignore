@@ -1,3 +1,4 @@
+# Python / build artifacts
 .venv/
 __pycache__/
 *.py[cod]
@@ -5,12 +6,28 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .ipynb_checkpoints/
+*.egg-info/
+build/
+dist/
 
+# Repo-local environment state
+.micromamba/
+.mujoco/
+.cache/
+.codex
+.codex/
+
+# Local datasets and generated runtime outputs
 data/
 artifacts/
 outputs/
 checkpoints/
 wandb/
+results/previews/
 
+# Local notes and intermediate documentation not part of the pushed runtime set
+docs/
+
+# OS metadata
 .DS_Store
 Thumbs.db
