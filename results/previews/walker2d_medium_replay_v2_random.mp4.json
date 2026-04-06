@@ -1,0 +1,18 @@
+{
+  "env": "walker2d-medium-replay-v2",
+  "seed": 0,
+  "steps_requested": 150,
+  "steps_executed": 150,
+  "frames_written": 82,
+  "fps": 20,
+  "frame_skip": 2,
+  "total_reward": 35.22210709171769,
+  "output": "results/previews/walker2d_medium_replay_v2_random.mp4",
+  "format": "mp4",
+  "mp4_supported": true,
+  "episodes_visited": 5,
+  "stop_on_done": false,
+  "observation_shape": [
+    17
+  ]
+}

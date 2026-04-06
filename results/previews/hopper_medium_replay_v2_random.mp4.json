@@ -1,0 +1,18 @@
+{
+  "env": "hopper-medium-replay-v2",
+  "seed": 0,
+  "steps_requested": 150,
+  "steps_executed": 150,
+  "frames_written": 81,
+  "fps": 20,
+  "frame_skip": 2,
+  "total_reward": 168.87306193904502,
+  "output": "results/previews/hopper_medium_replay_v2_random.mp4",
+  "format": "mp4",
+  "mp4_supported": true,
+  "episodes_visited": 4,
+  "stop_on_done": false,
+  "observation_shape": [
+    11
+  ]
+}
