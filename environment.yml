@@ -59,3 +59,4 @@ dependencies:
       - click>=8,<9
       - termcolor>=2,<3
       - transformers>=4.20,<5.0
+      - imageio>=2.28,<3.0

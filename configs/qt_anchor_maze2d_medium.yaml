@@ -7,7 +7,7 @@ env:
 
 evaluation:
   episodes: 10
-  max_steps: 500
+  max_steps: 1000
   target_return: null
 
 outputs:

@@ -124,6 +124,12 @@ source scripts/activate_env.sh
 bash scripts/install_d4rl_stack.sh
 ```
 
+> **GPU training:** `install_d4rl_stack.sh` installs CPU-only PyTorch by default. If you have a CUDA GPU and want to train, replace it with the appropriate CUDA build after step 5:
+> ```bash
+> pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cu121
+> ```
+> Adjust `cu121` to match your CUDA version (`cu118`, `cu124`, etc.). The rollout and eval scripts work on CPU.
+
 ### 6. Smoke test
 
 ```bash
