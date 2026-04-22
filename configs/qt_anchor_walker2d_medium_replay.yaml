@@ -1,0 +1,58 @@
+run_name: qt_anchor_walker2d_medium_replay
+seed: 123
+device: auto
+
+env:
+  name: walker2d-medium-replay-v2
+
+evaluation:
+  episodes: 10
+  max_steps: 1000
+  target_return: null
+
+outputs:
+  base_dir: results/qt_anchor_runs
+
+anchor:
+  enabled: true
+  env_family: walker2d
+  dataset_name: medium-replay
+  version: 2
+  K: 20
+  pct_traj: 1.0
+  batch_size: 256
+  embed_dim: 256
+  n_layer: 4
+  n_head: 4
+  activation_function: relu
+  dropout: 0.1
+  learning_rate: 0.0003
+  lr_min: 0.0
+  weight_decay: 0.0001
+  num_eval_episodes: 10
+  max_iters: 200
+  num_steps_per_iter: 1000
+  discount: 0.99
+  tau: 0.005
+  eta: 2.0
+  eta2: 1.0
+  lambda: 1.0
+  max_q_backup: false
+  lr_decay: true
+  grad_norm: 5.0
+  early_stop: false
+  early_epoch: 200
+  k_rewards: true
+  use_discount: true
+  sar: false
+  reward_tune: no
+  scale: 1000.0
+  test_scale: 1000.0
+  env_targets: [5000.0, 4000.0, 2500.0]
+  rtg_no_q: false
+  infer_no_q: false
+  ema_decay: 0.995
+  ema_start_step: 1000
+  ema_update_every: 5
+  trajectory_export_path: data/D4RL/walker2d-medium-replay-v2.pkl
+  save_trajectory_pkl: true

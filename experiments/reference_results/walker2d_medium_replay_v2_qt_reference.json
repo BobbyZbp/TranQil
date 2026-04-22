@@ -1,0 +1,13 @@
+{
+  "env_name": "walker2d-medium-replay-v2",
+  "entries": [
+    {
+      "label": "QT paper",
+      "source_name": "Q-value Regularized Transformer (ICML 2024)",
+      "source_note": "Walker2d-medium-replay-v2 normalized score reported by the QT paper.",
+      "source_url": "https://openreview.net/pdf?id=ojtddicekd",
+      "mean_normalized_score": 98.5,
+      "std_normalized_score": 1.1
+    }
+  ]
+}

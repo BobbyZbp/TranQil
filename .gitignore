@@ -21,9 +21,20 @@ dist/
 data/
 artifacts/
 outputs/
-checkpoints/
 wandb/
-results/previews/
+# results/previews/
+
+# Checkpoints — all except best.pt (tracked via LFS)
+results/**/checkpoints/latest.pt
+results/**/checkpoints/best.pt
+# best.pt is re-included explicitly per run via LFS (see .gitattributes)
+
+# Personal / notification scripts — not for public repo
+scripts/tg_notify.sh
+scripts/health_report.sh
+
+# Claude session files
+.claude/
 
 # Local notes and intermediate documentation not part of the pushed runtime set
 docs/

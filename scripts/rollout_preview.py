@@ -38,11 +38,17 @@ import argparse
 import json
 from pathlib import Path
 
-import imageio.v2 as imageio
 import numpy as np
 
-
-DEFAULT_PREVIEW_DIR = Path("results/previews")
+from tranqil.evaluation import create_gym_env, reset_env, unwrap_step_output
+from tranqil.rendering import (
+    capture_frame,
+    mp4_is_supported,
+    resolve_random_rollout_output_path,
+    resolve_summary_path,
+    write_preview,
+)
+from tranqil.runtime import write_json
 
 
 def parse_args() -> argparse.Namespace:
@@ -76,98 +82,31 @@ def parse_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-
-def sanitize_name(env_name: str) -> str:
-    return env_name.replace("/", "_").replace("-", "_")
-
-
-def resolve_output_path(args: argparse.Namespace, mp4_supported: bool) -> Path:
-    if args.output is not None:
-        return args.output
-
-    DEFAULT_PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
-    suffix = ".mp4" if args.format in {"auto", "mp4"} and mp4_supported else ".gif"
-    return DEFAULT_PREVIEW_DIR / f"{sanitize_name(args.env)}_random{suffix}"
-
-
-def mp4_is_supported() -> bool:
-    try:
-        import imageio_ffmpeg  # noqa: F401
-    except Exception:
-        return False
-    return True
-
-
-def make_env(env_name: str, seed: int):
-    import gym  # noqa: WPS433
-    import d4rl  # noqa: F401,WPS433
-
-    env = gym.make(env_name)
-    try:
-        env.action_space.seed(seed)
-    except Exception:
-        pass
-    return env
-
-
-def capture_frame(env) -> np.ndarray:
-    try:
-        frame = env.render(mode="rgb_array")
-    except TypeError:
-        frame = env.render("rgb_array")
-
-    if frame is None:
-        raise RuntimeError("render(mode='rgb_array') returned None")
-
-    frame = np.asarray(frame)
-    if frame.ndim != 3 or frame.shape[2] != 3:
-        raise RuntimeError(f"Unexpected frame shape from render: {frame.shape}")
-    return frame
-
-
-def write_preview(output_path: Path, frames: list[np.ndarray], fps: int) -> None:
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    suffix = output_path.suffix.lower()
-
-    if suffix == ".mp4":
-        imageio.mimwrite(output_path, frames, fps=fps)
-        return
-
-    if suffix == ".gif":
-        duration_ms = max(1, int(1000 / fps))
-        imageio.mimsave(output_path, frames, duration=duration_ms, loop=0)
-        return
-
-    raise ValueError(f"Unsupported output suffix: {suffix}")
-
-
 def main() -> int:
     args = parse_args()
     mp4_supported = mp4_is_supported()
-    output_path = resolve_output_path(args, mp4_supported)
+    output_path = resolve_random_rollout_output_path(
+        env_name=args.env,
+        output=args.output,
+        output_format=args.format,
+        mp4_supported=mp4_supported,
+    )
 
     if args.format == "mp4" and output_path.suffix.lower() != ".mp4":
         raise RuntimeError("mp4 was requested but imageio-ffmpeg is not available.")
 
-    env = make_env(args.env, args.seed)
+    env = create_gym_env(args.env, action_seed=args.seed)
 
     try:
         episode_count = 1
-        try:
-            obs = env.reset(seed=args.seed)
-        except TypeError:
-            try:
-                env.seed(args.seed)
-            except Exception:
-                pass
-            obs = env.reset()
+        observation = reset_env(env, args.seed)
         total_reward = 0.0
         frames = [capture_frame(env)]
         steps_executed = 0
 
         for step_idx in range(args.steps):
             action = env.action_space.sample()
-            obs, reward, done, info = env.step(action)
+            observation, reward, done, _ = unwrap_step_output(env.step(action))
             total_reward += float(reward)
             steps_executed += 1
 
@@ -178,10 +117,7 @@ def main() -> int:
                 if args.stop_on_done:
                     break
                 episode_count += 1
-                try:
-                    obs = env.reset(seed=args.seed + episode_count - 1)
-                except TypeError:
-                    obs = env.reset()
+                observation = reset_env(env, args.seed + episode_count - 1)
                 frames.append(capture_frame(env))
 
         write_preview(output_path, frames, fps=args.fps)
@@ -200,13 +136,13 @@ def main() -> int:
             "mp4_supported": mp4_supported,
             "episodes_visited": episode_count,
             "stop_on_done": args.stop_on_done,
-            "observation_shape": list(np.asarray(obs).shape),
+            "observation_shape": list(np.asarray(observation).shape),
         }
     finally:
         env.close()
 
-    summary_path = output_path.with_suffix(output_path.suffix + ".json")
-    summary_path.write_text(json.dumps(summary, indent=2))
+    summary_path = resolve_summary_path(output_path)
+    write_json(summary_path, summary)
 
     print(json.dumps(summary, indent=2))
     return 0

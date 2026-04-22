@@ -49,6 +49,11 @@ export XDG_CACHE_HOME="${XDG_CACHE_HOME:-${TRANQIL_CACHE_ROOT}/xdg}"
 export PIP_CACHE_DIR="${PIP_CACHE_DIR:-${XDG_CACHE_HOME}/pip}"
 export MPLCONFIGDIR="${MPLCONFIGDIR:-${XDG_CACHE_HOME}/matplotlib}"
 
+case ":${PYTHONPATH:-}:" in
+  *":${REPO_ROOT}/src:"*) ;;
+  *) export PYTHONPATH="${REPO_ROOT}/src${PYTHONPATH:+:${PYTHONPATH}}" ;;
+esac
+
 mkdir -p "${D4RL_DATASET_DIR}" "${XDG_CACHE_HOME}" "${PIP_CACHE_DIR}" "${MPLCONFIGDIR}"
 
 if [[ -n "${CONDA_PREFIX:-}" ]]; then
@@ -60,3 +65,8 @@ fi
 if [[ -d "/usr/lib/wsl/lib" ]]; then
   export LD_LIBRARY_PATH="/usr/lib/wsl/lib:${LD_LIBRARY_PATH}"
 fi
+
+# Telegram notification credentials — set these in your local environment or a
+# .env.local file (never commit real values here).
+export TG_TOKEN="${TG_TOKEN:-}"
+export TG_CHAT_ID="${TG_CHAT_ID:-}"

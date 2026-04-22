@@ -49,49 +49,80 @@ Detailed technical behavior and file-level specifications are documented directl
 
 ## Getting Started
 
-Run these commands from the repository root.
+The commands below assume Ubuntu/WSL with `bash`.
 
-Prerequisite: `micromamba` must already be installed and available on `PATH`.
+### 1. enable u to download install scripts/archives and fetch installer.
 
 ```bash
+sudo apt-get update
+sudo apt-get install -y curl tar bzip2 git
+```
+
+### 2. Install `micromamba` if needed
+
+The official recommended installation method for Linux is:
+
+```bash
+"${SHELL}" <(curl -L micro.mamba.pm/install.sh)
+source ~/.bashrc
 command -v micromamba
 ```
 
-If that command prints nothing, install `micromamba` first and then continue.
+Basically, the above commands just download the install scripts and then execute in your shell.
 
-Clone the repository and enter it:
+After installation, `command -v micromamba` should print a real path. If it
+still prints nothing, open a new terminal and run the command again before
+continuing. (Important! Make sure the micromamba properly installed before moving on)
+
+### 3. Clone the repository and enter it
 
 ```bash
 git clone git@github.com:BobbyZbp/TranQil.git
 cd TranQil
 ```
 
-Create the base repo-local environment:
+### 4. Create the base repo-local environment
+
+This project keeps its micromamba root inside the repository so each clone has
+its own local environment state.
 
 ```bash
 export MAMBA_ROOT_PREFIX="$PWD/.micromamba/root"
 micromamba create -y -f environment.yml
 ```
 
-Activate the repo-local environment:
+### 5. Activate the repo-local runtime
 
 ```bash
 source scripts/activate_env.sh
+echo "$CONDA_PREFIX"
+python -c "import sys; print(sys.executable)"
 ```
 
-Install or repair the D4RL + MuJoCo stack:
+The last two commands should point inside the current clone's
+`.micromamba/root/envs/tranqil-qt`.
+
+### 6. Install or repair the D4RL + MuJoCo stack
 
 ```bash
 bash scripts/install_d4rl_stack.sh
 ```
 
-Run the scoped smoke test:
+This step downloads or refreshes the Python runtime pieces used by the project,
+including `gym`, `mujoco-py`, `mjrl`, and `d4rl`.
+
+### 7. Run the scoped smoke test
 
 ```bash
 bash scripts/run_smoke_test.sh
 ```
 
-Render a single preview rollout:
+This validates that the three scoped tasks can be created and that their D4RL
+datasets can be loaded successfully.
+
+### 8. Render preview rollouts
+
+Render one task:
 
 ```bash
 bash scripts/run_rollout_preview.sh \
@@ -101,7 +132,7 @@ bash scripts/run_rollout_preview.sh \
   --frame-skip 2
 ```
 
-Render previews for all scoped tasks:
+Render all three scoped tasks:
 
 ```bash
 bash scripts/run_benchmark_rollouts.sh

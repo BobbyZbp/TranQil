@@ -1,0 +1,58 @@
+run_name: qt_anchor_maze2d_medium
+seed: 123
+device: auto
+
+env:
+  name: maze2d-medium-v1
+
+evaluation:
+  episodes: 10
+  max_steps: 500
+  target_return: null
+
+outputs:
+  base_dir: results/qt_anchor_runs
+
+anchor:
+  enabled: true
+  env_family: maze2d
+  dataset_name: medium
+  version: 1
+  K: 20
+  pct_traj: 1.0
+  batch_size: 256
+  embed_dim: 256
+  n_layer: 4
+  n_head: 4
+  activation_function: relu
+  dropout: 0.1
+  learning_rate: 0.0003
+  lr_min: 0.0
+  weight_decay: 0.0001
+  num_eval_episodes: 10
+  max_iters: 100
+  num_steps_per_iter: 1000
+  discount: 0.99
+  tau: 0.005
+  eta: 5.0
+  eta2: 1.0
+  lambda: 1.0
+  max_q_backup: false
+  lr_decay: true
+  grad_norm: 9.0
+  early_stop: true
+  early_epoch: 50
+  k_rewards: true
+  use_discount: true
+  sar: false
+  reward_tune: no
+  scale: 10.0
+  test_scale: 10.0
+  env_targets: [300.0, 200.0, 150.0, 100.0, 50.0, 20.0]
+  rtg_no_q: false
+  infer_no_q: false
+  ema_decay: 0.995
+  ema_start_step: 1000
+  ema_update_every: 5
+  trajectory_export_path: data/D4RL/maze2d-medium-v1.pkl
+  save_trajectory_pkl: true
