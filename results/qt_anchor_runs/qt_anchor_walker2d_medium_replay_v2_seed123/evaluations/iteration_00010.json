@@ -1,0 +1,55 @@
+{
+  "candidate_target_returns": [
+    5000.0,
+    4000.0,
+    2500.0
+  ],
+  "checkpoint_path": "/home/bobby/TranQil/results/qt_anchor_runs/qt_anchor_walker2d_medium_replay_v2_seed123/checkpoints/latest.pt",
+  "checkpoint_step": 10000,
+  "env_name": "walker2d-medium-replay-v2",
+  "episode_lengths": [
+    1000,
+    633,
+    1000,
+    1000,
+    1000,
+    1000,
+    1000,
+    1000,
+    1000,
+    1000
+  ],
+  "episode_returns": [
+    4250.952130365155,
+    2770.3809688469005,
+    4356.190233602317,
+    4390.027357342098,
+    4425.691661883361,
+    4396.557916219143,
+    4428.754457438564,
+    4311.3345192710285,
+    4399.63444879122,
+    4473.815591452431
+  ],
+  "episodes": 10,
+  "max_steps": 1000,
+  "mean_episode_length": 963.3,
+  "mean_normalized_score": 91.89734851120915,
+  "mean_return": 4220.333928521222,
+  "normalized_scores": [
+    92.56431423141193,
+    60.312576651036565,
+    94.85674824422958,
+    95.59383273141562,
+    96.37071926071414,
+    95.73608990663959,
+    96.43743707953715,
+    93.87964240481183,
+    95.80310696313173,
+    97.41901763916326
+  ],
+  "seed": 123,
+  "std_normalized_score": 10.608946002298595,
+  "std_return": 487.0218066844654,
+  "target_return": 5000.0
+}

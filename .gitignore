@@ -24,10 +24,9 @@ outputs/
 wandb/
 # results/previews/
 
-# Checkpoints — all except best.pt (tracked via LFS)
+# Checkpoints — latest.pt excluded, best.pt tracked via LFS
 results/**/checkpoints/latest.pt
-results/**/checkpoints/best.pt
-# best.pt is re-included explicitly per run via LFS (see .gitattributes)
+!results/**/checkpoints/best.pt
 
 # Personal / notification scripts — not for public repo
 scripts/tg_notify.sh
