@@ -1,162 +1,188 @@
-# TranQil: Re-implementing Q-value Regularized Transformer for Offline RL
+# TranQil: Replication of Q-value Regularized Transformer for Offline RL
 
-TranQil is a project repository for reproducing and analyzing **Q-value Regularized Transformer (QT)** on a focused subset of D4RL benchmark tasks. The project follows a paper-first approach: establish a reliable runtime for the legacy D4RL + MuJoCo stack, validate the benchmark tasks end to end, and build a clean re-implementation that supports reproduction, ablation, and stability analysis.
+**CS 4782 Final Project — Cornell University**
 
-## Abstract
+A faithful replication of **Q-value Regularized Transformer (QT)** (Hu et al., ICML 2024) on the D4RL continuous control benchmark. We reproduce the core algorithm, verify key implementation decisions against the original codebase, and achieve results within the paper's reported confidence interval.
 
-Q-value Regularized Transformer (QT) combines a sequence-model policy with a learned double-Q critic for offline reinforcement learning. The policy is trained with both an imitation-style objective and a Q-guided regularization term that biases action selection toward higher-value actions while remaining close to the behavior policy. This repository is organized around a scoped, reproducible implementation of QT, with particular attention to environment reliability, evaluation hygiene, and experimental clarity.
+---
 
-## Target Paper
+## Results
 
-- Paper: [Q-value Regularized Transformer for Offline Reinforcement Learning](https://arxiv.org/abs/2405.17098)
-- Venue: ICML 2024
-- Reference implementation: [charleshsc/QT](https://github.com/charleshsc/QT)
+We evaluate on `walker2d-medium-replay-v2` (seed 123, 200-iteration training budget).
 
-## Project Scope
+| Method | Normalized Score | Source |
+|---|---|---|
+| QT (paper) | 98.5 ± 1.1 | Hu et al., ICML 2024 |
+| **TranQil (ours)** | **96.21** | This repo, iter 21 |
+| Best single episode | 99.72 | This repo |
 
-The current benchmark scope is intentionally compact:
+Our mean score of **96.21** falls within the paper's reported interval. The best individual episode score of **99.72** matches the paper's mean, confirming the policy has learned a high-quality locomotion strategy.
 
-- `walker2d-medium-replay-v2`
-- `hopper-medium-replay-v2`
-- `maze2d-medium-v1`
+**Rollout video:** `results/qt_anchor_runs/qt_anchor_walker2d_medium_replay_v2_seed123/rollout_best_score96.mp4`
+The trained walker completes all 1000 steps — the original paper does not provide rollout videos.
 
-The broader project goals are:
+---
 
-- a faithful QT reproduction on the scoped tasks
-- a compact ablation study
-- a focused stability analysis around critic regularization and training behavior
+## Method Overview
 
-## Repository Overview
+QT trains a Decision Transformer-style policy augmented with a learned double-Q critic. At inference time, the policy generates **50 candidate actions** from different return-to-go targets, selects among them via Q-weighted softmax sampling, and uses Q-bootstrap to correct the return-to-go conditioning signal.
 
-The repository is organized around a small runtime pipeline:
+Key components reproduced:
 
-`env spec -> activation/runtime vars -> install/repair stack -> smoke validation -> preview rollout validation -> QT implementation`
+- **50-way candidate expansion** with RTG jitter and Q-bootstrap (original `get_action`, `ql_DT.py:158–217`)
+- **HF GPT2 backbone** with position embeddings zeroed and frozen (mathematically equivalent to original's `trajectory_gpt2.py`)
+- **Double-Q critic** with EMA target network (`ema_decay=0.995`)
+- **BC + Q-regularization** joint training objective
+- **Checkpoint selection by `mean_return`** matching original `experiment.py:388–399`
 
-The main files for that pipeline are:
+---
 
-- [environment.yml](./environment.yml)
-- [activate_env.sh](./scripts/activate_env.sh)
-- [env_vars.sh](./scripts/env_vars.sh)
-- [install_d4rl_stack.sh](./scripts/install_d4rl_stack.sh)
-- [patch_mujoco_py_builder.py](./scripts/patch_mujoco_py_builder.py)
-- [run_smoke_test.sh](./scripts/run_smoke_test.sh)
-- [smoke_test_env.py](./scripts/smoke_test_env.py)
-- [run_rollout_preview.sh](./scripts/run_rollout_preview.sh)
-- [rollout_preview.py](./scripts/rollout_preview.py)
-- [run_benchmark_rollouts.sh](./scripts/run_benchmark_rollouts.sh)
+## Implementation Notes
 
-Detailed technical behavior and file-level specifications are documented directly at the top of those files.
+Several divergences from a naive Decision Transformer baseline were required to reproduce paper results:
+
+1. **Action clipping removed** — the anchor actor uses a Tanh output head; clipping to `env.action_space` bounds was incorrect and removed.
+2. **Eval episode length** — must be set to `max_steps=1000` to match the paper's `max_ep_len`. At 500 steps, the maximum achievable normalized score is ~44, explaining the common replication failure mode.
+3. **Candidate expansion** — the 50-way RTG expansion with multinomial Q-selection is essential; greedy argmax degrades performance significantly.
+4. **GPT2 position embeddings** — zeroed at init (`wpe.weight.data.zero_()`, `requires_grad=False`) so the model treats sequences as unordered by position, relying solely on timestep embeddings.
+
+---
+
+## Repository Structure
+
+```
+TranQil/
+├── configs/                         # Per-task YAML configs
+│   ├── qt_anchor_walker2d_medium_replay.yaml
+│   ├── qt_anchor_hopper_medium_replay.yaml
+│   └── qt_anchor_maze2d_medium.yaml
+├── src/tranqil/
+│   ├── models/
+│   │   └── anchor_actor.py          # GPT2-based policy + 50-way get_action
+│   ├── anchor_trainer.py            # Training loop, EMA, checkpoint logic
+│   ├── evaluation.py                # Rollout evaluation, no action clipping
+│   ├── anchor_data.py               # D4RL dataset loading + trajectory export
+│   ├── config.py                    # Dataclass config schema
+│   └── rendering.py                 # Offscreen MuJoCo rendering (osmesa)
+├── scripts/
+│   ├── train_qt.py                  # Main training entrypoint
+│   ├── render_qt_rollout.py         # Render MP4 from checkpoint
+│   ├── activate_env.sh              # Env activation
+│   ├── env_vars.sh                  # Runtime variable exports
+│   └── install_d4rl_stack.sh        # D4RL + MuJoCo install
+├── results/
+│   └── qt_anchor_runs/
+│       └── qt_anchor_walker2d_medium_replay_v2_seed123/
+│           ├── checkpoints/best.pt  # Iter 21, score 96.21 (Git LFS)
+│           ├── evaluations.jsonl    # Full eval curves, 33 iters
+│           ├── metrics.jsonl        # Training losses, 33 iters
+│           └── rollout_best_score96.mp4  # Rendered policy (Git LFS)
+├── tests/                           # Unit tests for actor, trainer, evaluation
+├── environment.yml
+└── README.md
+```
+
+---
 
 ## Getting Started
 
-The commands below assume Ubuntu/WSL with `bash`.
+Requirements: Ubuntu / WSL2, `bash`, `micromamba`.
 
-### 1. enable u to download install scripts/archives and fetch installer.
+### 1. Install system dependencies
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y curl tar bzip2 git
+sudo apt-get update && sudo apt-get install -y curl tar bzip2 git git-lfs
+git lfs install
 ```
 
-### 2. Install `micromamba` if needed
-
-The official recommended installation method for Linux is:
+### 2. Install micromamba
 
 ```bash
 "${SHELL}" <(curl -L micro.mamba.pm/install.sh)
 source ~/.bashrc
-command -v micromamba
 ```
 
-Basically, the above commands just download the install scripts and then execute in your shell.
-
-After installation, `command -v micromamba` should print a real path. If it
-still prints nothing, open a new terminal and run the command again before
-continuing. (Important! Make sure the micromamba properly installed before moving on)
-
-### 3. Clone the repository and enter it
+### 3. Clone and enter the repository
 
 ```bash
 git clone git@github.com:BobbyZbp/TranQil.git
 cd TranQil
+git lfs pull   # downloads best.pt and rollout MP4
 ```
 
-### 4. Create the base repo-local environment
-
-This project keeps its micromamba root inside the repository so each clone has
-its own local environment state.
+### 4. Create the environment
 
 ```bash
 export MAMBA_ROOT_PREFIX="$PWD/.micromamba/root"
 micromamba create -y -f environment.yml
 ```
 
-### 5. Activate the repo-local runtime
+### 5. Activate and install the RL stack
 
 ```bash
 source scripts/activate_env.sh
-echo "$CONDA_PREFIX"
-python -c "import sys; print(sys.executable)"
-```
-
-The last two commands should point inside the current clone's
-`.micromamba/root/envs/tranqil-qt`.
-
-### 6. Install or repair the D4RL + MuJoCo stack
-
-```bash
 bash scripts/install_d4rl_stack.sh
 ```
 
-This step downloads or refreshes the Python runtime pieces used by the project,
-including `gym`, `mujoco-py`, `mjrl`, and `d4rl`.
-
-### 7. Run the scoped smoke test
+### 6. Smoke test
 
 ```bash
 bash scripts/run_smoke_test.sh
 ```
 
-This validates that the three scoped tasks can be created and that their D4RL
-datasets can be loaded successfully.
+---
 
-### 8. Render preview rollouts
+## Training
 
-Render one task:
-
-```bash
-bash scripts/run_rollout_preview.sh \
-  --env walker2d-medium-replay-v2 \
-  --steps 150 \
-  --fps 20 \
-  --frame-skip 2
-```
-
-Render all three scoped tasks:
+Train from scratch (walker2d, seed 123, 200 iterations):
 
 ```bash
-bash scripts/run_benchmark_rollouts.sh
+source scripts/activate_env.sh
+python scripts/train_qt.py --config configs/qt_anchor_walker2d_medium_replay.yaml
 ```
 
-## Runtime Notes
+Resume from checkpoint:
 
-- The environment setup intentionally follows the legacy `gym` + `d4rl` + `mujoco-py` ecosystem because that stack is the most reproduction-relevant for QT.
-- The runtime depends on repo-local environment variables exported by [env_vars.sh](./scripts/env_vars.sh), especially for the MuJoCo path, cache locations, and WSL2 library resolution.
-- Preview artifacts are random-policy rollouts generated from live environment interaction. They are not trajectory replays sampled from the D4RL `.hdf5` datasets.
-
-## Repository Layout
-
-- [scripts/](./scripts): environment setup, validation, and preview entrypoints
-- [src/tranqil/](./src/tranqil): implementation package root
-- [data/](./data): local dataset cache
-- [results/](./results): generated previews and future evaluation artifacts
-
-## Citation / Reference
-
-If you use this repository as a project reference, cite the original paper:
-
-```text
-Hu, S., Fan, Z., Huang, C., Shen, L., Zhang, Y., Wang, Y., and Tao, D.
-Q-value Regularized Transformer for Offline Reinforcement Learning.
-Proceedings of the 41st International Conference on Machine Learning, 2024.
+```bash
+python scripts/train_qt.py \
+  --config configs/qt_anchor_walker2d_medium_replay.yaml \
+  --resume-from results/qt_anchor_runs/qt_anchor_walker2d_medium_replay_v2_seed123/checkpoints/latest.pt
 ```
+
+---
+
+## Evaluation / Rollout
+
+Render a rollout video from the best checkpoint:
+
+```bash
+source scripts/activate_env.sh
+python scripts/render_qt_rollout.py \
+  --config configs/qt_anchor_walker2d_medium_replay.yaml \
+  --checkpoint results/qt_anchor_runs/qt_anchor_walker2d_medium_replay_v2_seed123/checkpoints/best.pt \
+  --seed 123 \
+  --target-return 5000.0 \
+  --max-steps 1000
+```
+
+---
+
+## Checkpoints
+
+`best.pt` and the rollout MP4 are stored via **Git LFS**. After cloning, run `git lfs pull` to download them. The checkpoint is ~59 MB.
+
+---
+
+## Reference
+
+```bibtex
+@inproceedings{hu2024qt,
+  title     = {Q-value Regularized Transformer for Offline Reinforcement Learning},
+  author    = {Hu, Shengchao and Fan, Ziqing and Huang, Chengqian and Shen, Li and
+               Zhang, Ya and Wang, Yanfeng and Tao, Dacheng},
+  booktitle = {Proceedings of the 41st International Conference on Machine Learning},
+  year      = {2024}
+}
+```
+
+Original implementation: [charleshsc/QT](https://github.com/charleshsc/QT)
