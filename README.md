@@ -88,36 +88,38 @@ TranQil/
 
 Requirements: Ubuntu / WSL2, `bash`, `micromamba`.
 
-### 1. Install system dependencies
-
-```bash
-sudo apt-get update && sudo apt-get install -y curl tar bzip2 git git-lfs
-git lfs install
-```
-
-### 2. Install micromamba
+### 1. Install micromamba
 
 ```bash
 "${SHELL}" <(curl -L micro.mamba.pm/install.sh)
 source ~/.bashrc
 ```
 
-### 3. Clone and enter the repository
+### 2. Clone and enter the repository
 
 ```bash
 git clone git@github.com:BobbyZbp/TranQil.git
 cd TranQil
-git lfs pull   # downloads best.pt and rollout MP4
 ```
 
-### 4. Create the environment
+### 3. Create the environment
 
 ```bash
 export MAMBA_ROOT_PREFIX="$PWD/.micromamba/root"
 micromamba create -y -f environment.yml
 ```
 
-### 5. Activate and install the RL stack
+### 4. Install git-lfs and pull checkpoints
+
+`git-lfs` is included in the micromamba environment — no sudo needed:
+
+```bash
+source scripts/activate_env.sh
+git lfs install
+git lfs pull   # downloads best.pt and rollout MP4
+```
+
+### 5. Install the RL stack
 
 ```bash
 source scripts/activate_env.sh
