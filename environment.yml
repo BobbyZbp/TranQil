@@ -32,6 +32,7 @@ dependencies:
   - pip
   - git
   - git-lfs
+  - tmux
   - curl
   - numpy=1.26.*
   - scipy=1.13.*

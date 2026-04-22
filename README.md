@@ -126,6 +126,8 @@ source scripts/activate_env.sh
 bash scripts/install_d4rl_stack.sh
 ```
 
+> **This step takes 5–10 minutes.** It compiles `mujoco-py` from C source, which produces a large amount of compiler output — this is normal. The step is complete when you see `[install_d4rl_stack] Installation complete`.
+
 > **GPU training:** `install_d4rl_stack.sh` installs CPU-only PyTorch by default. If you have a CUDA GPU and want to train, replace it with the appropriate CUDA build after step 5:
 > ```bash
 > pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cu121
@@ -140,22 +142,80 @@ bash scripts/run_smoke_test.sh
 
 ---
 
+## Datasets
+
+D4RL datasets download automatically on the first training run — no manual download needed. They are cached at `data/d4rl/` (created by `env_vars.sh`). Internet access is required on the first run per task.
+
+Approximate download sizes:
+
+| Task | Dataset size |
+|---|---|
+| `walker2d-medium-replay-v2` | ~180 MB |
+| `hopper-medium-replay-v2` | ~180 MB |
+| `maze2d-medium-v1` | ~50 MB |
+
+The `data/` directory is gitignored and will not be present after cloning.
+
+---
+
 ## Training
 
-Train from scratch (walker2d, seed 123, 200 iterations):
+> **Important:** Always `source scripts/activate_env.sh` in every new terminal before running any script. The `tranqil` package is not pip-installed — it is added to `PYTHONPATH` by the activation script. Running scripts without activation will fail with `ModuleNotFoundError: No module named 'tranqil'`.
+
+Training 200 iterations takes **~30–50 GPU-hours** depending on hardware. Use `tmux` (included in the environment) to run in the background so the job survives terminal disconnection:
 
 ```bash
 source scripts/activate_env.sh
+tmux new-session -s qt_train
+# inside the tmux session:
 python scripts/train_qt.py --config configs/qt_anchor_walker2d_medium_replay.yaml
+# detach with Ctrl+B then D — training continues in the background
+# reattach later with: tmux attach -t qt_train
 ```
 
-Resume from checkpoint:
+Resume from a checkpoint (e.g. after disconnection):
 
 ```bash
+source scripts/activate_env.sh
+tmux new-session -s qt_train
 python scripts/train_qt.py \
   --config configs/qt_anchor_walker2d_medium_replay.yaml \
   --resume-from results/qt_anchor_runs/qt_anchor_walker2d_medium_replay_v2_seed123/checkpoints/latest.pt
 ```
+
+---
+
+## Reading Results
+
+Training writes two files per run under `results/qt_anchor_runs/<run_name>/`:
+
+- `evaluations.jsonl` — one JSON line per eval iteration with `mean_return`, `mean_normalized_score`, and per-episode scores
+- `metrics.jsonl` — one JSON line per training iteration with losses (`critic_loss`, `actor_loss`, `bc_loss`) and `target_q_mean`
+
+To print the best score achieved so far:
+
+```bash
+python3 -c "
+import json
+evals = [json.loads(l) for l in open('results/qt_anchor_runs/qt_anchor_walker2d_medium_replay_v2_seed123/evaluations.jsonl')]
+best = max(evals, key=lambda x: x['mean_normalized_score'])
+print(f'Best: iter={best[\"iteration\"]}, score={best[\"mean_normalized_score\"]:.2f}, return={best[\"mean_return\"]:.1f}')
+"
+```
+
+---
+
+## Disk Space
+
+Approximate space required after full setup:
+
+| Component | Size |
+|---|---|
+| micromamba environment | ~1.5 GB |
+| MuJoCo 2.1.0 binary | ~40 MB |
+| D4RL datasets (all 3 tasks) | ~410 MB |
+| Checkpoints per run (`best.pt`) | ~60 MB |
+| **Total** | **~2.1 GB** |
 
 ---
 
