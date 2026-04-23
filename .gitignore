@@ -18,10 +18,10 @@ dist/
 .codex/
 
 # Local datasets and generated runtime outputs
-data/
-artifacts/
-outputs/
-wandb/
+/data/
+/artifacts/
+/outputs/
+/wandb/
 # results/previews/
 
 # Checkpoints — latest.pt excluded, best.pt tracked via LFS
