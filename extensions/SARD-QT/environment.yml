@@ -1,0 +1,33 @@
+name: original-qt
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pip
+  - git
+  - git-lfs
+  - tmux
+  - curl
+  - numpy=1.26.*
+  - scipy=1.13.*
+  - pandas=2.2.*
+  - matplotlib=3.9.*
+  - tqdm=4.66.*
+  - pyyaml=6.0.*
+  - h5py=3.11.*
+  - cython<3
+  - setuptools<70
+  - wheel
+  - cmake
+  - ninja
+  - patchelf
+  - glfw
+  - glew
+  - mesalib
+  - xorg-libx11
+  - xorg-libxext
+  - xorg-libxrender
+  - xorg-libxrandr
+  - xorg-libxcursor
+  - xorg-libxi
+  - xorg-libxinerama

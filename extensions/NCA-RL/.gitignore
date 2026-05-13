@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+.venv/
+venv/
+
+# Paper sources are tracked separately, not in this repo
+paper/
+
+# Experiment artifacts
+runs/
+wandb/
+checkpoints/
+*.ckpt
+*.pt
+*.pth
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp

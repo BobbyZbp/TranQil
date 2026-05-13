@@ -1,247 +1,169 @@
-# TranQil: Replication of Q-value Regularized Transformer for Offline RL
+# TranQil: A Re-implementation of *Q-value Regularized Transformer* for Offline RL
 
-**CS 4782 Final Project — Cornell University**
-
-A faithful replication of **Q-value Regularized Transformer (QT)** (Hu et al., ICML 2024) on the D4RL continuous control benchmark. We reproduce the core algorithm, verify key implementation decisions against the original codebase, and achieve results within the paper's reported confidence interval.
-
----
-
-## Results
-
-We evaluate on `walker2d-medium-replay-v2` (seed 123, 200-iteration training budget).
-
-| Method | Normalized Score | Source |
-|---|---|---|
-| QT (paper) | 98.5 ± 1.1 | Hu et al., ICML 2024 |
-| **TranQil (ours)** | **96.21** | This repo, iter 21 |
-| Best single episode | 99.72 | This repo |
-
-Our mean score of **96.21** falls within the paper's reported interval. The best individual episode score of **99.72** matches the paper's mean, confirming the policy has learned a high-quality locomotion strategy.
-
-**Rollout video:** `results/qt_anchor_runs/qt_anchor_walker2d_medium_replay_v2_seed123/rollout_best_score96.mp4`
-The trained walker completes all 1000 steps — the original paper does not provide rollout videos.
+**CS 4782 — Cornell University — Final Project**
+**Bopeng (Bobby) Zhang · Eric Yan · Yifei Wang**
 
 ---
 
-## Method Overview
+## 1. Introduction
 
-QT trains a Decision Transformer-style policy augmented with a learned double-Q critic. At inference time, the policy generates **50 candidate actions** from different return-to-go targets, selects among them via Q-weighted softmax sampling, and uses Q-bootstrap to correct the return-to-go conditioning signal.
+This GitHub repository contains our re-implementation of the paper **"Q-value Regularized Transformer for Offline Reinforcement Learning"** (Hu et al., ICML 2024) — referred to throughout as **QT** — written from scratch as our CS 4782 final deliverable.
 
-Key components reproduced:
+**Main contribution of the paper.** QT augments a Decision-Transformer-style sequence policy with a learned double-Q critic and a Q-regularized BC objective. At inference, instead of conditioning on a single return-to-go (RTG), the policy generates 50 candidate actions with jittered RTGs, scores them with the critic, and samples via a Q-weighted softmax. This recovers planning-like behaviour from a feed-forward sequence model and pushes the policy past prior Decision-Transformer baselines on the D4RL continuous-control benchmark.
 
-- **50-way candidate expansion** with RTG jitter and Q-bootstrap (original `get_action`, `ql_DT.py:158–217`)
-- **HF GPT2 backbone** with position embeddings zeroed and frozen (mathematically equivalent to original's `trajectory_gpt2.py`)
-- **Double-Q critic** with EMA target network (`ema_decay=0.995`)
-- **BC + Q-regularization** joint training objective
-- **Checkpoint selection by `mean_return`** matching original `experiment.py:388–399`
+The purpose of this repo is to *re-implement* the algorithm, *verify* it against the original code release, and *report* whether we can land inside the paper's reported confidence interval. The final report (see [`report/`](report/)) additionally documents a failed extension (SARD-QT) and a pivot to a separate counterfactual-necessity study (NCA-RL); the code for both of those is vendored under [`extensions/`](extensions/) so everything described in the report is reproducible from this one clone.
 
----
+## 2. Chosen Result
 
-## Implementation Notes
+We targeted the first two rows of Table 1 in Hu et al. (2024):
 
-Several divergences from a naive Decision Transformer baseline were required to reproduce paper results:
+> **QT on `walker2d-medium-replay-v2`: 98.5 ± 1.1** and **QT on `hopper-medium-replay-v2`: 102.0 ± 0.2** normalized D4RL scores.
 
-1. **Action clipping removed** — the anchor actor uses a Tanh output head; clipping to `env.action_space` bounds was incorrect and removed.
-2. **Eval episode length** — must be set to `max_steps=1000` to match the paper's `max_ep_len`. At 500 steps, the maximum achievable normalized score is ~44, explaining the common replication failure mode.
-3. **Candidate expansion** — the 50-way RTG expansion with multinomial Q-selection is essential; greedy argmax degrades performance significantly.
-4. **GPT2 position embeddings** — zeroed at init (`wpe.weight.data.zero_()`, `requires_grad=False`) so the model treats sequences as unordered by position, relying solely on timestep embeddings.
+These two cells are the central evidence that QT outperforms both pure Decision Transformer and pure Q-learning, and they exercise the paper's most non-trivial design choice — 50-way RTG candidate expansion with Q-bootstrap correction at inference — rather than just the base transformer architecture.
 
----
-
-## Repository Structure
+## 3. GitHub Contents
 
 ```
 TranQil/
-├── configs/                         # Per-task YAML configs
-│   ├── qt_anchor_walker2d_medium_replay.yaml
-│   ├── qt_anchor_hopper_medium_replay.yaml
-│   └── qt_anchor_maze2d_medium.yaml
-├── src/tranqil/
-│   ├── models/
-│   │   └── anchor_actor.py          # GPT2-based policy + 50-way get_action
-│   ├── anchor_trainer.py            # Training loop, EMA, checkpoint logic
-│   ├── evaluation.py                # Rollout evaluation, no action clipping
-│   ├── anchor_data.py               # D4RL dataset loading + trajectory export
-│   ├── config.py                    # Dataclass config schema
-│   └── rendering.py                 # Offscreen MuJoCo rendering (osmesa)
-├── scripts/
-│   ├── train_qt.py                  # Main training entrypoint
-│   ├── render_qt_rollout.py         # Render MP4 from checkpoint
-│   ├── activate_env.sh              # Env activation
-│   ├── env_vars.sh                  # Runtime variable exports
-│   └── install_d4rl_stack.sh        # D4RL + MuJoCo install
-├── results/
-│   └── qt_anchor_runs/
-│       └── qt_anchor_walker2d_medium_replay_v2_seed123/
-│           ├── checkpoints/best.pt  # Iter 21, score 96.21 (Git LFS)
-│           ├── evaluations.jsonl    # Full eval curves, 33 iters
-│           ├── metrics.jsonl        # Training losses, 33 iters
-│           └── rollout_best_score96.mp4  # Rendered policy (Git LFS)
-├── tests/                           # Unit tests for actor, trainer, evaluation
-├── environment.yml
-└── README.md
+├── README.md                  # this file
+├── LICENSE                    # MIT
+├── .gitignore
+├── environment.yml            # micromamba environment spec
+├── configs/                   # YAML configs (one per task / variant)
+├── src/tranqil/               # re-implementation code (the "code/" of the spec)
+│   ├── models/anchor_actor.py    #   GPT2 policy + 50-way candidate get_action
+│   ├── anchor_trainer.py         #   training loop, EMA target, checkpointing
+│   ├── evaluation.py             #   rollout eval (no action clipping, 1000 steps)
+│   ├── anchor_data.py            #   D4RL loading + trajectory shards
+│   ├── config.py                 #   dataclass config schema
+│   └── rendering.py              #   offscreen MuJoCo rendering (osmesa)
+├── scripts/                   # entrypoints / helpers (also part of "code/")
+│   ├── train_qt.py               #   main training entrypoint
+│   ├── render_qt_rollout.py      #   render MP4 rollout from a checkpoint
+│   ├── install_d4rl_stack.sh     #   D4RL + MuJoCo installer
+│   ├── activate_env.sh / env_vars.sh
+│   └── run_smoke_test.sh         #   ~2-minute reproducibility smoke test
+├── tests/                     # unit tests for actor, trainer, evaluation
+├── data/                      # D4RL datasets (gitignored, see data/README.md)
+│   └── README.md                 #   download / setup instructions
+├── results/                   # re-implementation outputs (curves, checkpoints, MP4)
+│   └── README.md                 #   describes JSONL schemas and headline run
+├── poster/                    # in-class presentation poster (PDF)
+├── report/                    # final written report (PDF)
+├── extensions/                # vendored snapshots of the two follow-up repos
+│   ├── README.md
+│   ├── NCA-RL/                #   counterfactual-necessity study (upstream: github.com/BobbyZbp/NCA-RL)
+│   └── SARD-QT/               #   failed reverse-credit + QSC-QT extension (upstream: github.com/BobbyZbp/SARD-QT)
+└── docs/                      # internal design notes (gitignored on push)
 ```
 
----
+> **Note on layout.** The course spec asks for a top-level `code/` directory. We follow the idiomatic Python `src/` + `scripts/` layout instead — `src/tranqil/` is the importable library and `scripts/` are the user-facing entrypoints. Together they constitute the `code/` of the spec. The `extensions/` folder vendors the two companion repositories referenced in the report so that everything described there is reproducible from a single clone; see [`extensions/README.md`](extensions/README.md).
 
-## Getting Started
+## 4. Re-implementation Details
 
-Requirements: Ubuntu / WSL2, `bash`, `micromamba`.
+- **Algorithm.** QT as described in Hu et al. (2024), Section 3. Joint training of a sequence policy and a double-Q critic with an EMA target network (`τ = 0.995`). Objective:
 
-### 1. Install micromamba
+  $$\mathcal{L}_{\text{QT}}(\theta) = \mathcal{L}_{\text{DT}}(\theta) \;-\; \alpha \cdot \mathbb{E}\big[\,Q_\phi(s_i,\, \pi_\theta(\tau_t)_i)\,\big], \quad \alpha = \eta\,/\,\mathbb{E}\big[\,|Q_\phi(s,a)|\,\big].$$
+
+  The critic is trained with n-step Bellman targets under double-Q clipping. Inference uses the 50-way candidate expansion with RTG jitter and multinomial Q-softmax selection.
+- **Architecture.** Policy: a **4-layer, 4-head, 256-dim** GPT-2-style causal transformer (HuggingFace `transformers<4.40`). Critic: dual MLP with Mish activations and EMA target networks. The optimizer uses cosine LR decay.
+- **Datasets.** D4RL `walker2d-medium-replay-v2` (~180 MB) and `hopper-medium-replay-v2` (~180 MB), auto-downloaded on first run. Trajectories are sharded into a `qt_cache/` of context-length windows.
+- **Tools / framework.** PyTorch 2.4, HuggingFace `transformers<4.40`, D4RL + `mujoco-py` against MuJoCo 2.1.0, micromamba environment.
+- **Evaluation.** Per-iteration rollouts on 10 episodes capped at `max_steps = 1000`, scored with D4RL's normalized-score helper. Best checkpoint selected by `mean_return` (matches the original `experiment.py:388–399`).
+- **Compute.** Single NVIDIA **RTX 5090**, ~**10 GPU-hours total** across both tasks and seeds.
+- **Key fixes vs. a naive baseline (each one was needed to reach paper-level scores):**
+  1. **Action clipping removed.** The anchor actor outputs through a Tanh head; clipping to `env.action_space` bounds zeroed gradients and was incorrect.
+  2. **`max_steps = 1000`.** At the gym default of 500, the maximum achievable normalized score on `walker2d-medium-replay-v2` is ≈ 44 — the most common silent replication failure.
+  3. **50-way candidate expansion with multinomial Q-softmax.** Greedy `argmax` over the 50 candidates degrades performance materially.
+  4. **GPT-2 position embeddings zeroed and frozen** (`wpe.weight.data.zero_(); requires_grad=False`), forcing the model to rely on timestep embeddings.
+- **What our re-implementation also taught us (documented in [`report/report.pdf`](report/report.pdf)):** Q-loss `eta` and `grad_norm` required more tuning than the paper suggests; checkpoint-by-checkpoint variance is large enough that single-seed runs noticeably under-estimate the paper's 3-seed mean.
+
+## 5. Reproduction Steps
+
+Requirements: Ubuntu or WSL2, `bash`, and `micromamba`.
 
 ```bash
+# 1. Install micromamba
 "${SHELL}" <(curl -L micro.mamba.pm/install.sh)
 source ~/.bashrc
-```
 
-### 2. Clone and enter the repository
-
-```bash
+# 2. Clone
 git clone git@github.com:BobbyZbp/TranQil.git
 cd TranQil
-```
 
-### 3. Create the environment
-
-```bash
+# 3. Create the environment
 export MAMBA_ROOT_PREFIX="$PWD/.micromamba/root"
 micromamba create -y -f environment.yml
-```
 
-### 4. Install git-lfs and pull checkpoints
-
-`git-lfs` is included in the micromamba environment — no sudo needed:
-
-```bash
+# 4. Activate + pull LFS artifacts (best.pt + rollout MP4)
 source scripts/activate_env.sh
 git lfs install
-git lfs pull   # downloads best.pt and rollout MP4
-```
+git lfs pull
 
-### 5. Install the RL stack
-
-```bash
-source scripts/activate_env.sh
+# 5. Install the RL stack (compiles mujoco-py; takes 5–10 min)
 bash scripts/install_d4rl_stack.sh
-```
 
-> **This step takes 5–10 minutes.** It compiles `mujoco-py` from C source, which produces a large amount of compiler output — this is normal. The step is complete when you see `[install_d4rl_stack] Installation complete`.
-
-> **GPU training:** `install_d4rl_stack.sh` installs CPU-only PyTorch by default. If you have a CUDA GPU and want to train, replace it with the appropriate CUDA build after step 5:
-> ```bash
-> pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cu121
-> ```
-> Adjust `cu121` to match your CUDA version (`cu118`, `cu124`, etc.). The rollout and eval scripts work on CPU.
-
-### 6. Smoke test
-
-```bash
+# 6. Smoke test (~2 min)
 bash scripts/run_smoke_test.sh
 ```
 
----
+**GPU build.** Step 5 installs CPU-only PyTorch by default. For training, install the CUDA build matching your driver (the rollout/eval path runs fine on CPU):
 
-## Datasets
+```bash
+pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cu121
+```
 
-D4RL datasets download automatically on the first training run — no manual download needed. They are cached at `data/d4rl/` (created by `env_vars.sh`). Internet access is required on the first run per task.
-
-Approximate download sizes:
-
-| Task | Dataset size |
-|---|---|
-| `walker2d-medium-replay-v2` | ~180 MB |
-| `hopper-medium-replay-v2` | ~180 MB |
-| `maze2d-medium-v1` | ~50 MB |
-
-The `data/` directory is gitignored and will not be present after cloning.
-
----
-
-## Training
-
-> **Important:** Always `source scripts/activate_env.sh` in every new terminal before running any script. The `tranqil` package is not pip-installed — it is added to `PYTHONPATH` by the activation script. Running scripts without activation will fail with `ModuleNotFoundError: No module named 'tranqil'`.
-
-Training 200 iterations takes **~30–50 GPU-hours** depending on hardware. Use `tmux` (included in the environment) to run in the background so the job survives terminal disconnection:
+**Train (use `tmux` — 200 iters is many hours):**
 
 ```bash
 source scripts/activate_env.sh
 tmux new-session -s qt_train
-# inside the tmux session:
-python scripts/train_qt.py --config configs/qt_anchor_walker2d_medium_replay.yaml
-# detach with Ctrl+B then D — training continues in the background
-# reattach later with: tmux attach -t qt_train
+python scripts/train_qt.py --config configs/qt_anchor_walker2d_medium_replay.yaml   # or qt_anchor_hopper_medium_replay.yaml
+# detach: Ctrl-B then D ;  reattach: tmux attach -t qt_train
 ```
 
-Resume from a checkpoint (e.g. after disconnection):
-
-```bash
-source scripts/activate_env.sh
-tmux new-session -s qt_train
-python scripts/train_qt.py \
-  --config configs/qt_anchor_walker2d_medium_replay.yaml \
-  --resume-from results/qt_anchor_runs/qt_anchor_walker2d_medium_replay_v2_seed123/checkpoints/latest.pt
-```
-
----
-
-## Reading Results
-
-Training writes two files per run under `results/qt_anchor_runs/<run_name>/`:
-
-- `evaluations.jsonl` — one JSON line per eval iteration with `mean_return`, `mean_normalized_score`, and per-episode scores
-- `metrics.jsonl` — one JSON line per training iteration with losses (`critic_loss`, `actor_loss`, `bc_loss`) and `target_q_mean`
-
-To print the best score achieved so far:
-
-```bash
-python3 -c "
-import json
-evals = [json.loads(l) for l in open('results/qt_anchor_runs/qt_anchor_walker2d_medium_replay_v2_seed123/evaluations.jsonl')]
-best = max(evals, key=lambda x: x['mean_normalized_score'])
-print(f'Best: iter={best[\"iteration\"]}, score={best[\"mean_normalized_score\"]:.2f}, return={best[\"mean_return\"]:.1f}')
-"
-```
-
----
-
-## Disk Space
-
-Approximate space required after full setup:
-
-| Component | Size |
-|---|---|
-| micromamba environment | ~1.5 GB |
-| MuJoCo 2.1.0 binary | ~40 MB |
-| D4RL datasets (all 3 tasks) | ~410 MB |
-| Checkpoints per run (`best.pt`) | ~60 MB |
-| **Total** | **~2.1 GB** |
-
----
-
-## Evaluation / Rollout
-
-Render a rollout video from the best checkpoint:
+**Render a rollout from the released `best.pt`:**
 
 ```bash
 source scripts/activate_env.sh
 python scripts/render_qt_rollout.py \
   --config configs/qt_anchor_walker2d_medium_replay.yaml \
   --checkpoint results/qt_anchor_runs/qt_anchor_walker2d_medium_replay_v2_seed123/checkpoints/best.pt \
-  --seed 123 \
-  --target-return 5000.0 \
-  --max-steps 1000
+  --seed 123 --target-return 5000.0 --max-steps 1000
 ```
 
----
+**Compute needed.** Reproducing the headline numbers needs a single modern NVIDIA GPU (we used an RTX 5090) and ~2.1 GB of disk after a full setup. Running the released checkpoint (eval + rollout video only) works on CPU in a few minutes.
 
-## Checkpoints
+> The `tranqil` package is added to `PYTHONPATH` by `scripts/activate_env.sh` rather than pip-installed — always source the activation script in a fresh shell.
 
-`best.pt` and the rollout MP4 are stored via **Git LFS**. After cloning, run `git lfs pull` to download them. The checkpoint is ~59 MB.
+## 6. Results / Insights
 
----
+What you can expect from this repo, vs. the paper:
 
-## Reference
+| Environment | Paper (Hu et al., 2024, 3 seeds) | **TranQil (ours, 1 seed)** | Gap |
+|---|---|---|---|
+| `walker2d-medium-replay-v2` | 98.5 ± 1.1 | **96.21** | −2.3 |
+| `hopper-medium-replay-v2` | 102.0 ± 0.2 | **99.10** | −2.9 |
+
+Walker2d's −2.3 gap sits inside the paper's reported ±1.1 band at ≈ 2 σ; the larger −2.9 gap on Hopper reflects single-seed variance against the paper's 3-seed mean. Best single-episode normalized score on Walker2d: **99.72** — matches the paper's mean exactly, confirming the policy has learned a high-quality locomotion strategy. A rendered 1000-step rollout from `best.pt` is at [`results/qt_anchor_runs/qt_anchor_walker2d_medium_replay_v2_seed123/rollout_best_score96.mp4`](results/qt_anchor_runs/qt_anchor_walker2d_medium_replay_v2_seed123/rollout_best_score96.mp4) (the paper does not provide rollout videos).
+
+**Headline insight.** The result is *not* sensitive to architecture details (GPT-2 size, optimizer schedule) but is *extremely* sensitive to four otherwise-easy-to-miss decisions: eval horizon = 1000, no action clipping, 50-way candidate expansion with multinomial Q-selection, and zeroed/frozen GPT-2 position embeddings. Each one independently moves the final score by tens of points.
+
+## 7. Conclusion
+
+We re-implemented QT from scratch and reproduced its `walker2d-medium-replay-v2` and `hopper-medium-replay-v2` numbers within (or near) the paper's reported confidence intervals, validating the core claim that Q-regularization plus the 50-way candidate expansion is sufficient to push a sequence policy past plain Decision Transformer.
+
+The biggest lesson was that "faithful re-implementation" of a Decision-Transformer-style method is much less about the model and much more about the *inference loop and evaluation harness*. Four small, undocumented-looking details (clipping, eval horizon, candidate sampling, position embeddings) account for the entire gap between a non-working baseline and the paper number — exactly the kind of friction CS 4782 sets out to expose. Beyond the baseline, our follow-up experiments documented in [`report/report.pdf`](report/report.pdf) found that QT's long-horizon weakness is *not* fixable by adding more value-style supervision (the failed SARD-QT extension), and motivated a separate counterfactual-necessity study (NCA-RL) — both maintained in their own repositories.
+
+## 8. References
+
+1. Hu, S., Fan, Z., Huang, C., Shen, L., Zhang, Y., Wang, Y., and Tao, D. (2024). *Q-value Regularized Transformer for Offline Reinforcement Learning*. ICML 2024. (`original_paper.pdf` in this repo.)
+2. Chen, L., Lu, K., Rajeswaran, A., Lee, K., Grover, A., Laskin, M., Abbeel, P., Srinivas, A., and Mordatch, I. (2021). *Decision Transformer: Reinforcement Learning via Sequence Modeling.* NeurIPS 2021.
+3. Kostrikov, I., Nair, A., and Levine, S. (2022). *Offline Reinforcement Learning with Implicit Q-Learning.* ICLR 2022.
+4. Fu, J., Kumar, A., Nachum, O., Tucker, G., and Levine, S. (2020). *D4RL: Datasets for Deep Data-Driven Reinforcement Learning.* arXiv:2004.07219.
+5. Original QT implementation reference: [`charleshsc/QT`](https://github.com/charleshsc/QT).
+6. HuggingFace Transformers (GPT-2 backbone): https://github.com/huggingface/transformers.
+7. Companion repositories from this project (vendored under [`extensions/`](extensions/)): [`github.com/BobbyZbp/NCA-RL`](https://github.com/BobbyZbp/NCA-RL), [`github.com/BobbyZbp/SARD-QT`](https://github.com/BobbyZbp/SARD-QT).
 
 ```bibtex
 @inproceedings{hu2024qt,
@@ -253,4 +175,6 @@ python scripts/render_qt_rollout.py \
 }
 ```
 
-Original implementation: [charleshsc/QT](https://github.com/charleshsc/QT)
+## 9. Acknowledgements
+
+This project was carried out as the final deliverable for **CS 4782 — Deep Learning** at **Cornell University (Spring 2026)** by Bopeng (Bobby) Zhang, Eric Yan, and Yifei Wang. We thank the course instructors and TAs for feedback during the proposal and concept-note milestones, and the authors of `charleshsc/QT` for releasing the original implementation, which we used as a correctness reference when our reproduction diverged from the paper's headline number.

@@ -18,7 +18,8 @@ dist/
 .codex/
 
 # Local datasets and generated runtime outputs
-/data/
+/data/*
+!/data/README.md
 /artifacts/
 /outputs/
 /wandb/

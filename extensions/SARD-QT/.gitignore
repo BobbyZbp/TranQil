@@ -1,0 +1,10 @@
+.cache/
+.d4rl/
+.mujoco/
+.micromamba/
+.codex
+__pycache__/
+*.py[cod]
+
+D4RL/*.pkl
+save/

@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nca"
+version = "0.0.1"
+description = "Necessity-aware Credit Assignment for Offline-to-Online RL (ICML 2026 O2O workshop)"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "torch",
+    "matplotlib",
+    "scipy",
+    "tqdm",
+    "pyrallis",
+    "wandb",
+]
+
+[project.optional-dependencies]
+# CORL/D4RL stack — install on GPU host where mujoco_py is set up.
+# Local laptop work (Tier 0, code-writing for nca_iql) does NOT need this.
+d4rl = [
+    "gym[mujoco_py,classic_control]==0.23.0",
+    "mujoco-py==2.1.2.14",
+    "d4rl @ git+https://github.com/tinkoff-ai/d4rl@master",
+]
+dev = ["pytest", "ruff"]
+
+[tool.setuptools.packages.find]
+include = ["nca*"]
